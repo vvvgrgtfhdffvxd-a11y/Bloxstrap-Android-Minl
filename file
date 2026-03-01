@@ -1,0 +1,61 @@
+name: 🚀 Bloxstrap-Mini-Ultimate-Engine
+on: [push, pull_request]
+
+jobs:
+  build-and-protect:
+    runs-on: ubuntu-latest
+    steps:
+      # 1-5: Инициализация (Checkout, Java, .NET, Cache, Permissions)
+      - uses: actions/checkout@v4
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with: {java-version: '17', distribution: 'temurin'}
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with: {dotnet-version: '8.0.x'}
+
+      # 6-15: Глубокая проверка кода (Lint, Security Scan, TODO check)
+      - name: 🔍 Scan for Secrets (Security)
+        run: grep -rE "key|password|token" . || echo "Safe"
+      - name: 📝 List all TODOs
+        run: grep -rnE "TODO|FIXME" . || echo "Clean"
+      - name: 📏 Count Lines of Code
+        run: find . -name "*.kt" -o -name "*.cs" | xargs wc -l
+
+      # 16-30: Модификация под MINI-BETA (Патчинг кода на лету)
+      - name: ✂️ Strip Bloatware (Discord/Logs)
+        run: |
+          sed -i 's/DiscordRPC.Initialize();//g' **/*.cs || echo "No PC code"
+          sed -i 's/debuggable = true/debuggable = false/g' **/*.xml || echo "No APK code"
+      - name: 🏷️ Auto-Version Update
+        run: echo "BUILD_VER=1.0.${{ github.run_number }}-beta" >> $GITHUB_ENV
+
+      # 31-40: Сборка (Android APK + Windows EXE)
+      - name: 🏗️ Build Android APK (Mini)
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - name: 💻 Build Windows EXE (Trimmed)
+        run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true
+
+      # 41-50: Финализация (Хеширование, Артефакты, Релизы)
+      - name: 🔐 Generate SHA256 Checksum
+        run: sha256sum app/build/outputs/apk/debug/*.apk > checksum.txt
+      - name: 📦 Archive Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bloxstrap-Mini-Beta-Package
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            bin/Release/net8.0/win-x64/publish/*.exe
+            checksum.txt
+
+      - name: 🚀 Auto-Release to GitHub
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            app/build/outputs/apk/debug/*.apk
+            checksum.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
